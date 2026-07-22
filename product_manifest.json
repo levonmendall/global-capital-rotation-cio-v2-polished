@@ -1,0 +1,15 @@
+{
+  "product": "Global Capital Rotation CIO",
+  "version": "2.0.0-polished-complete-repository",
+  "main_file": "app.py",
+  "python_version": "3.11",
+  "required_streamlit_secrets": [
+    "FRED_API_KEY",
+    "APP_PASSWORD",
+    "APP_TITLE"
+  ],
+  "required_github_actions_secrets": [
+    "FRED_API_KEY"
+  ],
+  "trading_enabled": false
+}

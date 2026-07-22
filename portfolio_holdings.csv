@@ -1,0 +1,6 @@
+ticker,description,market_value,cost_basis,account_type,max_weight
+SPY,S&P 500 ETF,10000,8500,Taxable,0.35
+SMH,Semiconductor ETF,7000,5200,Roth IRA,0.15
+GLD,Gold ETF,2500,2100,Taxable,0.12
+SHY,Short Treasury ETF,3000,3000,Savings,0.25
+CASH,Cash,2500,2500,Savings,1.0
