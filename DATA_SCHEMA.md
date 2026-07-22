@@ -1,18 +1,31 @@
-# Data schemas
+# V2.1 historical data schema
 
-## current_snapshot.csv
+## market_history
 
-Required columns:
+One row per date and ticker, including price, returns, momentum, breadth proxy,
+flow proxy, risk score, volatility, source, and recording timestamp.
 
-`ticker, group, level, price, move_1d, momentum_3m, momentum_12m, breadth, flow, risk_score, volatility`
+## regime_history
 
-## portfolio_holdings.csv
+One row per archived date, including regime, posture, confidence, composite
+score, component scores, source payload, and timestamp.
 
-Required columns:
+## rotation_history
 
-`ticker, description, market_value, cost_basis, account_type, max_weight`
+One row per date and ticker, including rank, risk-adjusted score, trend score,
+CIO view, and trend state.
 
-`max_weight` uses decimal form: `0.20` means 20%.
+## committee_history
 
-Never include account numbers, Social Security numbers, passwords, or brokerage
-credentials in CSV files.
+One row per date and specialist.
+
+## decision_history
+
+One immutable CIO decision per archived date.
+
+## decision_outcomes
+
+Reserved for forward 5-, 21-, and 63-business-day result measurement.
+
+Never store brokerage credentials, passwords, Social Security numbers, or
+account numbers in these files.

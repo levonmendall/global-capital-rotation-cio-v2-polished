@@ -1,33 +1,32 @@
-# Global Capital Rotation CIO — Polished V2
+# Global Capital Rotation CIO — V2.1 Historical Intelligence
 
-A mobile-first Streamlit decision-support platform designed to behave like an
-explainable Chief Investment Officer.
+V2.1 upgrades the polished Streamlit CIO application from a current-state
+dashboard into an auditable historical decision platform.
 
-## Included
+## New capabilities
 
-- CIO Command Center
-- Transparent market-regime engine
-- Six-specialist committee
-- Capital-rotation rankings
-- Portfolio analytics
-- Model-alignment considerations
-- Stress scenarios
-- PDF reports
-- Decision history
-- Password protection
-- Scheduled GitHub refresh
-- Streamlit Community Cloud configuration
+- Append-only daily market archive
+- Ten-year historical backfill workflow
+- Historical regime reconstruction
+- Historical capital-rotation rankings
+- Specialist committee archive
+- Immutable CIO decision archive
+- Regime timeline and transition matrix
+- Leadership-frequency analysis
+- Forward-return analysis
+- CSV exports
+- SQLite historical database
+- Daily automated continuation
 
-## Entry point
+## Start locally
 
-`app.py`
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
 
-## Runtime
+Read `V2_1_DEPLOYMENT.md` before upgrading the live repository.
 
-Python `3.11`
-
-## Deployment
-
-Read `DEPLOY_NEW_REPOSITORY.md`.
-
-This application does not place trades or guarantee investment outcomes.
+Historical breadth, flow, and some risk fields may use transparent market-price
+proxies when licensed point-in-time data is unavailable. This platform is
+decision support and does not place trades or guarantee outcomes.

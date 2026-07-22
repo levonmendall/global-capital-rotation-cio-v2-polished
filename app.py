@@ -18,7 +18,11 @@ from engine import (
     build_decision,
     stress_scenarios,
 )
-from storage import save_decision, decision_history, refresh_history
+from storage import save_decision, decision_history, refresh_history, initialize_v21_history
+from historical_engine import (
+    load_history, historical_summary, transition_matrix,
+    rotation_forward_performance, seed_database_from_csvs,
+)
 from report_builder import build_pdf
 
 ROOT = Path(__file__).resolve().parent
@@ -77,6 +81,8 @@ div[data-testid="stExpander"] {border:1px solid var(--line);border-radius:14px;o
     unsafe_allow_html=True,
 )
 
+initialize_v21_history()
+
 @st.cache_data(ttl=900)
 def load_market():
     return enrich_market(pd.read_csv(ROOT / "current_snapshot.csv"))
@@ -110,7 +116,7 @@ if "v2_decision_saved" not in st.session_state:
 
 with st.sidebar:
     st.markdown("## ◈ Capital CIO")
-    st.caption("Enhanced Streamlit V2")
+    st.caption("Historical Intelligence V2.1")
     page = st.radio(
         "Navigation",
         [
@@ -119,6 +125,7 @@ with st.sidebar:
             "Capital Rotation",
             "Risk & Regime",
             "CIO Committee",
+            "Historical Intelligence",
             "Reports",
             "System Health",
         ],
@@ -289,6 +296,146 @@ elif page == "CIO Committee":
     st.markdown("### Committee conclusion")
     st.info(decision["brief"])
     st.metric("Specialist agreement", f"{decision['specialist_agreement']:.0f}%")
+
+
+elif page == "Historical Intelligence":
+    st.markdown("## Historical Intelligence")
+    st.caption("An auditable timeline of market states, regime classifications, rotation rankings, and recorded CIO decisions.")
+
+    try:
+        seed_database_from_csvs()
+        summary = historical_summary()
+        regimes = load_history("regime_history")
+        rotations = load_history("rotation_history")
+        market_history = load_history("market_history")
+        committee_history = load_history("committee_history")
+        decisions_v21 = load_history("decision_history")
+    except Exception as exc:
+        st.warning(f"Historical storage is not initialized yet: {exc}")
+        regimes = pd.DataFrame()
+        rotations = pd.DataFrame()
+        market_history = pd.DataFrame()
+        committee_history = pd.DataFrame()
+        decisions_v21 = pd.DataFrame()
+        summary = {
+            "history_days": 0, "first_date": None, "last_date": None,
+            "regime_changes": 0, "current_regime_days": 0,
+            "tracked_assets": 0,
+        }
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Archived dates", summary["history_days"])
+    c2.metric("Current regime duration", f'{summary["current_regime_days"]} periods')
+    c3.metric("Regime changes", summary["regime_changes"])
+    c4.metric("Tracked assets", summary["tracked_assets"])
+
+    if regimes.empty:
+        st.info(
+            "The historical database is ready but has no backfill yet. Run the "
+            "Historical Backfill workflow in GitHub Actions, then reboot the Streamlit app."
+        )
+    else:
+        st.markdown("### Regime timeline")
+        regime_plot = regimes.copy()
+        regime_plot["date"] = pd.to_datetime(regime_plot["date"])
+        fig = px.scatter(
+            regime_plot,
+            x="date",
+            y="composite",
+            color="regime",
+            size="confidence",
+            hover_data=["posture", "risk_score"],
+            labels={"composite": "Regime composite", "date": ""},
+        )
+        fig.update_traces(mode="lines+markers")
+        fig.update_layout(height=420, margin=dict(l=0, r=0, t=10, b=0))
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.markdown("### Regime components over time")
+        components = regime_plot.melt(
+            id_vars=["date"],
+            value_vars=["growth", "liquidity", "breadth", "credit", "volatility_safety"],
+            var_name="component",
+            value_name="score",
+        )
+        fig = px.line(components, x="date", y="score", color="component")
+        fig.update_layout(height=390, margin=dict(l=0, r=0, t=10, b=0), yaxis_range=[0,100])
+        st.plotly_chart(fig, use_container_width=True)
+
+        left, right = st.columns(2)
+        with left:
+            st.markdown("### Regime transition matrix")
+            matrix = transition_matrix(regimes)
+            if matrix.empty:
+                st.caption("More historical dates are required.")
+            else:
+                st.dataframe(matrix, use_container_width=True)
+        with right:
+            st.markdown("### Current leadership history")
+            latest_dates = sorted(rotations["date"].astype(str).unique())[-20:]
+            leaders = rotations[
+                rotations["date"].astype(str).isin(latest_dates) &
+                (pd.to_numeric(rotations["rank"], errors="coerce") <= 3)
+            ]
+            if not leaders.empty:
+                counts = leaders.groupby("group_name").size().sort_values(ascending=False).reset_index(name="top_3_appearances")
+                st.dataframe(counts, use_container_width=True, hide_index=True)
+
+        st.markdown("### Forward performance of historical leaders")
+        horizon = st.select_slider("Forward horizon", options=[5, 21, 63], value=21)
+        forward = rotation_forward_performance(market_history, rotations, horizon_days=horizon)
+        if forward.empty:
+            st.caption("More daily history is required before forward returns can be calculated.")
+        else:
+            perf = (
+                forward.groupby("ticker")["forward_return"]
+                .agg(["count","mean","median"])
+                .sort_values("mean", ascending=False)
+                .reset_index()
+            )
+            st.dataframe(
+                perf,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "mean": st.column_config.NumberColumn("Average forward return", format="%.2%%"),
+                    "median": st.column_config.NumberColumn("Median forward return", format="%.2%%"),
+                },
+            )
+
+        st.markdown("### Decision archive")
+        if not decisions_v21.empty:
+            show = decisions_v21.sort_values("date", ascending=False)[
+                ["date","regime","posture","confidence","risk_score",
+                 "increase_asset","maintain_asset","reduce_asset","specialist_agreement"]
+            ]
+            st.dataframe(show, use_container_width=True, hide_index=True)
+
+        with st.expander("Download historical datasets"):
+            if not regimes.empty:
+                st.download_button(
+                    "Download regime history",
+                    regimes.to_csv(index=False).encode("utf-8"),
+                    "regime_history.csv",
+                    "text/csv",
+                    use_container_width=True,
+                )
+            if not rotations.empty:
+                st.download_button(
+                    "Download rotation history",
+                    rotations.to_csv(index=False).encode("utf-8"),
+                    "rotation_history.csv",
+                    "text/csv",
+                    use_container_width=True,
+                )
+            if not market_history.empty:
+                st.download_button(
+                    "Download market history",
+                    market_history.to_csv(index=False).encode("utf-8"),
+                    "market_history.csv",
+                    "text/csv",
+                    use_container_width=True,
+                )
 
 elif page == "Reports":
     st.markdown("## CIO Reports")

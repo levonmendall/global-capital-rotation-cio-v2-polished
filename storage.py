@@ -48,3 +48,14 @@ def log_refresh(status, message):
 def refresh_history(limit=50):
     with connect() as con:
         return pd.read_sql_query("SELECT * FROM refresh_log ORDER BY id DESC LIMIT ?", con, params=(limit,))
+
+
+def initialize_v21_history():
+    """Initialize or restore the V2.1 historical database."""
+    try:
+        from historical_engine import connect as history_connect, seed_database_from_csvs
+        history_connect().close()
+        seed_database_from_csvs()
+    except Exception:
+        # The live dashboard can still run from the current snapshot if history is unavailable.
+        pass
